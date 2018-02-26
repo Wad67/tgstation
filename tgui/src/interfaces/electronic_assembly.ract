@@ -1,0 +1,5 @@
+<ui-display title='electronic_assembly'>
+  <ui-section label='Components:'>
+    <span>{{data.assembly_components}}</span>
+  </ui-section>
+</ui-display>

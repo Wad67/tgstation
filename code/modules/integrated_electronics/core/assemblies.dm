@@ -51,13 +51,40 @@
 			if(!draw_power(IC.power_draw_idle))
 				IC.power_fail()
 
+//Start of the big, scary UI change
+/obj/item/device/electronic_assembly/ui_interact(mob/user, ui_key = "main", datum/tgui/ui = null, force_open = FALSE, \
+											datum/tgui/master_ui = null, datum/ui_state/state = GLOB.default_state)
+	ui = SStgui.try_update_ui(user, src, ui_key, ui, force_open)
+	if(!ui)
+		ui = new(user, src, ui_key, "electronic_assembly", name, 1000, 800, master_ui, state)
+		ui.open()
 
-/obj/item/device/electronic_assembly/interact(mob/user)
 	if(!check_interactivity(user))
 		return
 
 	var/total_part_size = return_total_size()
 	var/total_complexity = return_total_complexity()
+
+/obj/item/device/electronic_assembly/ui_data()
+	var/list/data = list()
+	//data["assembly_components"] = assembly_components
+	data["assembly_components"] = list()
+	for(var/obj/item/integrated_circuit/IC in assembly_components)
+		data["assembly_components"] += list(list(
+			"displayed_name" = IC.displayed_name
+		))
+
+	var/message = "This is a shitty test interface I will probably never finish"
+	return data
+
+/obj/item/device/electronic_assembly/ui_act(action, params, datum/tgui/ui)
+	if(..())
+		return
+
+
+
+
+	/*
 	var/HTML = ""
 
 	HTML += "<html><head><title>[name]</title></head><body>"
@@ -110,7 +137,7 @@
 
 	HTML += "</body></html>"
 	user << browse(HTML, "window=assembly-[REF(src)];size=600x350;border=1;can_resize=1;can_close=1;can_minimize=1")
-
+*/
 /obj/item/device/electronic_assembly/Topic(href, href_list)
 	if(..())
 		return 1
