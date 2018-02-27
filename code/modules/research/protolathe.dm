@@ -11,12 +11,10 @@ Note: Must be placed west/left of and R&D console to function.
 	name = "protolathe"
 	desc = "Converts raw materials into useful objects."
 	icon_state = "protolathe"
-	container_type = OPENCONTAINER_1
+	container_type = OPENCONTAINER
 	circuit = /obj/item/circuitboard/machine/protolathe
 
 	var/efficiency_coeff
-	var/console_link = TRUE		//allow console link.
-	var/requires_console = TRUE
 	var/list/categories = list(
 								"Power Designs",
 								"Medical Designs",
@@ -37,8 +35,9 @@ Note: Must be placed west/left of and R&D console to function.
 	create_reagents(0)
 	materials = AddComponent(/datum/component/material_container,
 		list(MAT_METAL, MAT_GLASS, MAT_SILVER, MAT_GOLD, MAT_DIAMOND, MAT_PLASMA, MAT_URANIUM, MAT_BANANIUM, MAT_TITANIUM, MAT_BLUESPACE), 0,
-		FALSE, list(/obj/item/stack, /obj/item/ore/bluespace_crystal), CALLBACK(src, .proc/is_insertion_ready), CALLBACK(src, .proc/AfterMaterialInsert))
+		FALSE, list(/obj/item/stack, /obj/item/stack/ore/bluespace_crystal), CALLBACK(src, .proc/is_insertion_ready), CALLBACK(src, .proc/AfterMaterialInsert))
 	materials.precise_insertion = TRUE
+	RefreshParts()
 	return ..()
 
 /obj/machinery/rnd/protolathe/RefreshParts()
@@ -94,7 +93,7 @@ Note: Must be placed west/left of and R&D console to function.
 		return FALSE
 
 	var/power = 1000
-	amount = Clamp(amount, 1, 10)
+	amount = CLAMP(amount, 1, 10)
 	for(var/M in D.materials)
 		power += round(D.materials[M] * amount / 5)
 	power = max(3000, power)
@@ -130,6 +129,6 @@ Note: Must be placed west/left of and R&D console to function.
 		message_admins("[ADMIN_LOOKUPFLW(usr)] has built [amount] of [path] at a protolathe")
 	for(var/i in 1 to amount)
 		var/obj/item/I = new path(get_turf(src))
-		if(!istype(I, /obj/item/stack/sheet) && !istype(I, /obj/item/ore/bluespace_crystal))
+		if(!istype(I, /obj/item/stack/sheet) && !istype(I, /obj/item/stack/ore/bluespace_crystal))
 			I.materials = matlist.Copy()
 	SSblackbox.record_feedback("nested tally", "item_printed", amount, list("[type]", "[path]"))

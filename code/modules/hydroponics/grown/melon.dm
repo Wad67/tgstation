@@ -33,6 +33,7 @@
 	filling_color = "#008000"
 	bitesize_mod = 3
 	foodtype = FRUIT
+	juice_results = list("watermelonjuice" = 0)
 
 // Holymelon
 /obj/item/seeds/watermelon/holy
@@ -53,3 +54,7 @@
 	icon_state = "holymelon"
 	filling_color = "#FFD700"
 	dried_type = null
+
+/obj/item/reagent_containers/food/snacks/grown/holymelon/Initialize()
+	. = ..()
+	AddComponent(/datum/component/anti_magic, TRUE, TRUE) //deliver us from evil o melon god

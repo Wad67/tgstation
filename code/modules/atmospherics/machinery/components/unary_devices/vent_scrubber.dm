@@ -34,6 +34,10 @@
 	..()
 	if(!id_tag)
 		id_tag = assign_uid_vents()
+	for(var/f in filter_types)
+		if(istext(f))
+			filter_types -= f
+			filter_types += gas_id2path(f)
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on
 	on = TRUE
@@ -77,7 +81,7 @@
 		icon_state = "scrub_welded"
 		return
 
-	if(!NODE1 || !on || !is_operational())
+	if(!nodes[1] || !on || !is_operational())
 		icon_state = "scrub_off"
 		return
 
@@ -98,16 +102,12 @@
 	if(!radio_connection)
 		return FALSE
 
-	var/datum/signal/signal = new
-	signal.transmission_method = TRANSMISSION_RADIO
-	signal.source = src
-
 	var/list/f_types = list()
 	for(var/path in GLOB.meta_gas_info)
 		var/list/gas = GLOB.meta_gas_info[path]
 		f_types += list(list("gas_id" = gas[META_GAS_ID], "gas_name" = gas[META_GAS_NAME], "enabled" = (path in filter_types)))
 
-	signal.data = list(
+	var/datum/signal/signal = new(list(
 		"tag" = id_tag,
 		"frequency" = frequency,
 		"device" = "VS",
@@ -117,7 +117,7 @@
 		"widenet" = widenet,
 		"filter_types" = f_types,
 		"sigtype" = "status"
-	)
+	))
 
 	var/area/A = get_area(src)
 	if(!A.air_scrub_names[id_tag])
@@ -142,7 +142,7 @@
 	..()
 	if(welded || !is_operational())
 		return FALSE
-	if(!NODE1 || !on)
+	if(!nodes[1] || !on)
 		on = FALSE
 		return FALSE
 	scrub(loc)
@@ -156,7 +156,7 @@
 		return FALSE
 
 	var/datum/gas_mixture/environment = tile.return_air()
-	var/datum/gas_mixture/air_contents = AIR1
+	var/datum/gas_mixture/air_contents = airs[1]
 	var/list/env_gases = environment.gases
 
 	if(air_contents.return_pressure() >= 50*ONE_ATMOSPHERE)
@@ -179,7 +179,7 @@
 			filtered_out.temperature = removed.temperature
 
 			for(var/gas in filter_types & removed_gases)
-				ADD_GAS(gas, filtered_gases)
+				filtered_out.add_gas(gas)
 				filtered_gases[gas][MOLES] = removed_gases[gas][MOLES]
 				removed_gases[gas][MOLES] = 0
 
@@ -242,6 +242,11 @@
 	if("toggle_filter" in signal.data)
 		filter_types ^= gas_id2path(signal.data["toggle_filter"])
 
+	if("set_filters" in signal.data)
+		filter_types = list()
+		for(var/gas in signal.data["set_filters"])
+			filter_types += gas_id2path(gas)
+
 	if("init" in signal.data)
 		name = signal.data["init"]
 		return
@@ -258,28 +263,21 @@
 	..()
 	update_icon_nopipes()
 
-/obj/machinery/atmospherics/components/unary/vent_scrubber/attackby(obj/item/W, mob/user, params)
-	if(istype(W, /obj/item/weldingtool))
-		var/obj/item/weldingtool/WT = W
-		if(WT.remove_fuel(0,user))
-			playsound(loc, WT.usesound, 40, 1)
-			to_chat(user, "<span class='notice'>Now welding the scrubber.</span>")
-			if(do_after(user, 20*W.toolspeed, target = src))
-				if(!src || !WT.isOn())
-					return
-				playsound(src.loc, 'sound/items/welder2.ogg', 50, 1)
-				if(!welded)
-					user.visible_message("[user] welds the scrubber shut.","You weld the scrubber shut.", "You hear welding.")
-					welded = TRUE
-				else
-					user.visible_message("[user] unwelds the scrubber.", "You unweld the scrubber.", "You hear welding.")
-					welded = FALSE
-				update_icon()
-				pipe_vision_img = image(src, loc, layer = ABOVE_HUD_LAYER, dir = dir)
-				pipe_vision_img.plane = ABOVE_HUD_PLANE
-			return 0
-	else
-		return ..()
+/obj/machinery/atmospherics/components/unary/vent_scrubber/welder_act(mob/living/user, obj/item/I)
+	if(!I.tool_start_check(user, amount=0))
+		return TRUE
+	to_chat(user, "<span class='notice'>Now welding the scrubber.</span>")
+	if(I.use_tool(src, user, 20, volume=50))
+		if(!welded)
+			user.visible_message("[user] welds the scrubber shut.","You weld the scrubber shut.", "You hear welding.")
+			welded = TRUE
+		else
+			user.visible_message("[user] unwelds the scrubber.", "You unweld the scrubber.", "You hear welding.")
+			welded = FALSE
+		update_icon()
+		pipe_vision_img = image(src, loc, layer = ABOVE_HUD_LAYER, dir = dir)
+		pipe_vision_img.plane = ABOVE_HUD_PLANE
+	return TRUE
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/can_unwrench(mob/user)
 	. = ..()

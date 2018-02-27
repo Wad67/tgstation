@@ -3,7 +3,7 @@
 	weight = 2
 	typepath = /datum/round_event/wizard/race
 	max_occurrences = 5
-	earliest_start = 0
+	earliest_start = 0 MINUTES
 
 /datum/round_event/wizard/race/start()
 
@@ -12,7 +12,7 @@
 
 	for(var/speciestype in subtypesof(/datum/species))
 		var/datum/species/S = new speciestype()
-		if(!S.dangerous_existence)
+		if(!S.dangerous_existence && !S.blacklisted)
 			all_species += speciestype
 
 	var/datum/species/new_species = pick(all_species)

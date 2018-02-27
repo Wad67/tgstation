@@ -158,7 +158,7 @@ GLOBAL_LIST_INIT(admin_verbs_debug, world.AVerbsDebug())
 	/client/proc/pump_random_event,
 	/client/proc/cmd_display_init_log,
 	/client/proc/cmd_display_overlay_log,
-	/datum/admins/proc/create_or_modify_area
+	/datum/admins/proc/create_or_modify_area,
 	)
 GLOBAL_PROTECT(admin_verbs_possess)
 GLOBAL_LIST_INIT(admin_verbs_possess, list(/proc/possess, /proc/release))
@@ -530,8 +530,10 @@ GLOBAL_LIST_INIT(admin_verbs_hideable, list(
 	set desc = "Get the estimated range of a bomb, using explosive power."
 
 	var/ex_power = input("Explosive Power:") as null|num
+	if (isnull(ex_power))
+		return
 	var/range = round((2 * ex_power)**GLOB.DYN_EX_SCALE)
-	to_chat(usr, "Estimated Explosive Range: (Devestation: [round(range*0.25)], Heavy: [round(range*0.5)], Light: [round(range)])")
+	to_chat(usr, "Estimated Explosive Range: (Devastation: [round(range*0.25)], Heavy: [round(range*0.5)], Light: [round(range)])")
 
 /client/proc/get_dynex_power()
 	set category = "Debug"
@@ -539,6 +541,8 @@ GLOBAL_LIST_INIT(admin_verbs_hideable, list(
 	set desc = "Get the estimated required power of a bomb, to reach a specific range."
 
 	var/ex_range = input("Light Explosion Range:") as null|num
+	if (isnull(ex_range))
+		return
 	var/power = (0.5 * ex_range)**(1/GLOB.DYN_EX_SCALE)
 	to_chat(usr, "Estimated Explosive Power: [power]")
 
@@ -638,12 +642,7 @@ GLOBAL_LIST_INIT(admin_verbs_hideable, list(
 	if(has_antag_hud())
 		toggle_antag_hud()
 
-	holder.disassociate()
-	qdel(holder)
-
-	GLOB.deadmins += ckey
-	GLOB.admin_datums -= ckey
-	verbs += /client/proc/readmin
+	holder.deactivate()
 
 	to_chat(src, "<span class='interface'>You are now a normal player.</span>")
 	log_admin("[src] deadmined themself.")
@@ -655,13 +654,20 @@ GLOBAL_LIST_INIT(admin_verbs_hideable, list(
 	set category = "Admin"
 	set desc = "Regain your admin powers."
 
-	load_admins(ckey)
+	var/datum/admins/A = GLOB.deadmins[ckey]
 
-	if(!holder) // Something went wrong...
-		return
+	if(!A)
+		A = GLOB.admin_datums[ckey]
+		if (!A)
+			var/msg = " is trying to readmin but they have no deadmin entry"
+			message_admins("[key_name_admin(src)][msg]")
+			log_admin_private("[key_name(src)][msg]")
+			return
 
-	GLOB.deadmins -= ckey
-	verbs -= /client/proc/readmin
+	A.associate(src)
+
+	if (!holder)
+		return //This can happen if an admin attempts to vv themself into somebody elses's deadmin datum by getting ref via brute force
 
 	to_chat(src, "<span class='interface'>You are now an admin.</span>")
 	message_admins("[src] re-adminned themselves.")

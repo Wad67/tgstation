@@ -48,12 +48,12 @@
 	point_upgrade = point_upgrade_temp
 	sheet_per_ore = sheet_per_ore_temp
 
-/obj/machinery/mineral/ore_redemption/proc/smelt_ore(obj/item/ore/O)
+/obj/machinery/mineral/ore_redemption/proc/smelt_ore(obj/item/stack/ore/O)
 
 	ore_buffer -= O
 
 	if(O && O.refined_type)
-		points += O.points * point_upgrade
+		points += O.points * point_upgrade * O.amount
 
 	GET_COMPONENT(materials, /datum/component/material_container)
 	var/material_amount = materials.get_item_material_amount(O)
@@ -61,7 +61,7 @@
 	if(!material_amount)
 		qdel(O) //no materials, incinerate it
 
-	else if(!materials.has_space(material_amount * sheet_per_ore)) //if there is no space, eject it
+	else if(!materials.has_space(material_amount * sheet_per_ore * O.amount)) //if there is no space, eject it
 		unload_mineral(O)
 
 	else
@@ -82,7 +82,7 @@
 		if(!M || !redemption_mat)
 			return FALSE
 
-		var/smeltable_sheets = Floor(redemption_mat.amount / M)
+		var/smeltable_sheets = FLOOR(redemption_mat.amount / M, 1)
 
 		if(!smeltable_sheets)
 			return FALSE
@@ -102,7 +102,7 @@
 		smelt_ore(ore)
 
 /obj/machinery/mineral/ore_redemption/proc/send_console_message()
-	if(!(z in GLOB.station_z_levels))
+	if(!is_station_level(z))
 		return
 	message_sent = TRUE
 	var/area/A = get_area(src)
@@ -133,7 +133,7 @@
 	if(OB)
 		input = OB
 
-	for(var/obj/item/ore/O in input)
+	for(var/obj/item/stack/ore/O in input)
 		if(QDELETED(O))
 			continue
 		ore_buffer |= O
@@ -257,9 +257,8 @@
 		if("Release")
 
 			if(check_access(inserted_id) || allowed(usr)) //Check the ID inside, otherwise check the user
-				var/out = get_step(src, output_dir)
 				if(params["id"] == "all")
-					materials.retrieve_all(out)
+					materials.retrieve_all(get_step(src, output_dir))
 				else
 					var/mat_id = params["id"]
 					if(!materials.materials[mat_id])
@@ -277,7 +276,7 @@
 						desired = input("How many sheets?", "How many sheets would you like to smelt?", 1) as null|num
 
 					var/sheets_to_remove = round(min(desired,50,stored_amount))
-					materials.retrieve_sheets(sheets_to_remove, mat_id, out)
+					materials.retrieve_sheets(sheets_to_remove, mat_id, get_step(src, output_dir))
 
 			else
 				to_chat(usr, "<span class='warning'>Required access not found.</span>")

@@ -19,6 +19,7 @@
 	var/power_draw_per_use = 0 		// How much power is drawn when work()'d.
 	var/power_draw_idle = 0			// How much power is drawn when doing nothing.
 	var/spawn_flags					// Used for world initializing, see the #defines above.
+	var/action_flags = NONE			// Used for telling circuits that can do certain actions from other circuits.
 	var/category_text = "NO CATEGORY THIS IS A BUG"	// To show up on circuit printer, and perhaps other places.
 	var/removable = TRUE 			// Determines if a circuit is removable from the assembly.
 	var/displayed_name = ""
@@ -58,11 +59,17 @@ a creative player the means to solve many problems.  Circuits are held inside an
 /obj/item/integrated_circuit/proc/any_examine(mob/user)
 	return
 
+/obj/item/integrated_circuit/proc/attackby_react(var/atom/movable/A,mob/user)
+	return
+
+/obj/item/integrated_circuit/proc/sense(var/atom/movable/A,mob/user,prox)
+	return
+
 /obj/item/integrated_circuit/proc/check_interactivity(mob/user)
 	if(assembly)
 		return assembly.check_interactivity(user)
 	else
-		return user.canUseTopic(src,be_close = TRUE)
+		return user.canUseTopic(src, BE_CLOSE)
 
 /obj/item/integrated_circuit/Initialize()
 	displayed_name = name
@@ -114,7 +121,7 @@ a creative player the means to solve many problems.  Circuits are held inside an
 		return
 
 	var/window_height = 350
-	var/window_width = 600
+	var/window_width = 655
 
 	var/table_edge_width = "30%"
 	var/table_middle_width = "40%"
@@ -129,7 +136,7 @@ a creative player the means to solve many problems.  Circuits are held inside an
 
 	HTML += "<a href='?src=[REF(src)]'>\[Refresh\]</a>  |  "
 	HTML += "<a href='?src=[REF(src)];rename=1'>\[Rename\]</a>  |  "
-	HTML += "<a href='?src=[REF(src)];scan=1'>\[Scan with Device\]</a>"
+	HTML += "<a href='?src=[REF(src)];scan=1'>\[Copy Ref\]</a>"
 	if(assembly && removable)
 		HTML += "  |  <a href='?src=[REF(assembly)];component=[REF(src)];remove=1'>\[Remove\]</a>"
 	HTML += "<br>"
@@ -291,17 +298,18 @@ a creative player the means to solve many problems.  Circuits are held inside an
 		return TRUE // Battery has enough.
 	return FALSE // Not enough power.
 
-/obj/item/integrated_circuit/proc/check_then_do_work(var/ignore_power = FALSE)
+/obj/item/integrated_circuit/proc/check_then_do_work(ord,var/ignore_power = FALSE)
 	if(world.time < next_use) 	// All intergrated circuits have an internal cooldown, to protect from spam.
-		return
+		return FALSE
 	if(power_draw_per_use && !ignore_power)
 		if(!check_power())
 			power_fail()
-			return
+			return FALSE
 	next_use = world.time + cooldown_per_use
-	do_work()
+	do_work(ord)
+	return TRUE
 
-/obj/item/integrated_circuit/proc/do_work()
+/obj/item/integrated_circuit/proc/do_work(ord)
 	return
 
 /obj/item/integrated_circuit/proc/disconnect_all()
@@ -330,3 +338,42 @@ a creative player the means to solve many problems.  Circuits are held inside an
 		return assembly.get_object()
 	else
 		return src	// If not, the component is acting on its own.
+
+
+// Returns the location to be used for dropping items.
+// Same as the regular drop_location(), but with proc being run on assembly if there is any.
+/obj/item/integrated_circuit/drop_location()
+	// If the component is located in an assembly, let the assembly figure that one out.
+	if(assembly)
+		return assembly.drop_location()
+	else
+		return ..()	// If not, the component is acting on its own.
+
+
+// Checks if the target object is reachable. Useful for various manipulators and manipulator-like objects.
+/obj/item/integrated_circuit/proc/check_target(atom/target, exclude_contents = FALSE, exclude_components = FALSE, exclude_self = FALSE)
+	if(!target)
+		return FALSE
+
+	var/atom/movable/acting_object = get_object()
+
+	if(exclude_self && target == acting_object)
+		return FALSE
+
+	if(exclude_components && assembly)
+		if(target in assembly.assembly_components)
+			return FALSE
+
+		if(target == assembly.battery)
+			return FALSE
+
+	if(target.Adjacent(acting_object) && isturf(target.loc))
+		return TRUE
+
+	if(!exclude_contents && (target in acting_object.GetAllContents()))
+		return TRUE
+
+	if(target in acting_object.loc)
+		return TRUE
+
+	return FALSE
