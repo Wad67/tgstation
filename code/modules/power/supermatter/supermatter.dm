@@ -137,6 +137,8 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 
 	var/datum/looping_sound/supermatter/soundloop
 
+	var/moveable = TRUE
+
 /obj/machinery/power/supermatter_shard/Initialize()
 	. = ..()
 	uid = gl_uid++
@@ -233,6 +235,7 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 		if(M.z == z)
 			SEND_SOUND(M, 'sound/magic/charge.ogg')
 			to_chat(M, "<span class='boldannounce'>You feel reality distort for a moment...</span>")
+			M.SendSignal(COMSIG_ADD_MOOD_EVENT, "delam", /datum/mood_event/delam)
 	if(combined_gas > MOLE_PENALTY_THRESHOLD)
 		investigate_log("has collapsed into a singularity.", INVESTIGATE_SUPERMATTER)
 		if(T)
@@ -276,7 +279,7 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 	if(!removed || !removed.total_moles() || isspaceturf(T)) //we're in space or there is no gas to process
 		if(takes_damage)
 			damage += max((power / 1000) * DAMAGE_INCREASE_MULTIPLIER, 0.1) // always does at least some damage
-	else 
+	else
 		if(takes_damage)
 			//causing damage
 			damage = max(damage + (max(removed.temperature - ((T0C + HEAT_PENALTY_THRESHOLD)*dynamic_heat_resistance), 0) * mole_heat_penalty / 150 ) * DAMAGE_INCREASE_MULTIPLIER, 0)
@@ -435,7 +438,7 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 					L.rad_act(rads)
 
 			explode()
-			
+
 	return 1
 
 /obj/machinery/power/supermatter_shard/bullet_act(obj/item/projectile/Proj)
@@ -483,7 +486,7 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 	if(iscarbon(user))
 		var/mob/living/carbon/C = user
 		to_chat(C, "<span class='userdanger'>That was a really dumb idea.</span>")
-		var/obj/item/bodypart/head/rip_u = C.get_bodypart("head")
+		var/obj/item/bodypart/head/rip_u = C.get_bodypart(BODY_ZONE_HEAD)
 		rip_u.dismember(BURN) //nice try jedi
 
 /obj/machinery/power/supermatter_shard/attack_paw(mob/user)
@@ -511,6 +514,9 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 	return
 
 /obj/machinery/power/supermatter_shard/attack_hand(mob/living/user)
+	. = ..()
+	if(.)
+		return
 	dust_mob(user, cause = "hand")
 
 /obj/machinery/power/supermatter_shard/proc/dust_mob(mob/living/nom, vis_msg, mob_msg, cause)
@@ -530,6 +536,8 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 /obj/machinery/power/supermatter_shard/attackby(obj/item/W, mob/living/user, params)
 	if(!istype(W) || (W.flags_1 & ABSTRACT_1) || !istype(user))
 		return
+	if (istype(W, /obj/item/melee/roastingstick))
+		return ..()
 	if(istype(W, /obj/item/scalpel/supermatter))
 		to_chat(user, "<span class='notice'>You carefully begin to scrape \the [src] with \the [W]...</span>")
 		if(W.use_tool(src, user, 60, volume=100))
@@ -546,6 +554,10 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 
 		radiation_pulse(src, 150, 4)
 
+/obj/machinery/power/supermatter_shard/wrench_act(mob/user, obj/item/tool)
+	if (moveable)
+		default_unfasten_wrench(user, tool, time = 20)
+	return TRUE
 
 /obj/machinery/power/supermatter_shard/CollidedWith(atom/movable/AM)
 	if(isliving(AM))
@@ -607,6 +619,7 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 	anchored = TRUE
 	gasefficency = 0.15
 	explosion_power = 35
+	moveable = FALSE
 
 /obj/machinery/power/supermatter_shard/crystal/engine
 	is_main_engine = TRUE
@@ -618,7 +631,7 @@ GLOBAL_DATUM(main_supermatter_engine, /obj/machinery/power/supermatter_shard)
 			var/atom/movable/pulled_object = P
 			if(ishuman(P))
 				var/mob/living/carbon/human/H = P
-				H.apply_effect(40, KNOCKDOWN, 0)
+				H.apply_effect(40, EFFECT_KNOCKDOWN, 0)
 			if(pulled_object && !pulled_object.anchored && !ishuman(P))
 				step_towards(pulled_object,center)
 				step_towards(pulled_object,center)
